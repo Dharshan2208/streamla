@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
+	"time"
 )
 
 type MovieState struct {
@@ -109,14 +113,54 @@ func streamHandler(state *MovieState) http.HandlerFunc {
 	}
 }
 
+// cleanup
+func (m *MovieState) Cleanup() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.filePath == "" {
+		_ = os.Remove(m.filePath)
+
+		m.filePath = ""
+		m.originalName = ""
+
+		log.Println("Temporary movie file cleaned up")
+	}
+}
+
 func main() {
 	// http.HandleFunc("/stream",streamHandler("song.mp3"))
 	moviestate := &MovieState{}
-	http.HandleFunc("/stream", streamHandler(moviestate))
-	http.HandleFunc("/api/upload", uploadHandler(moviestate))
 
-	log.Println("Server running on http://localhost:8080")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
-		log.Fatal(err)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/stream", streamHandler(moviestate))
+	mux.HandleFunc("/api/upload", uploadHandler(moviestate))
+
+	server := &http.Server{
+		Addr:    ":8080",
+		Handler: mux,
 	}
+
+	go func() {
+		log.Println("Server running on http://localhost:8080")
+		// err server closed prevents treating normal shutdown as a crash
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server error: %v", err)
+		}
+	}()
+
+	// ctrl + c(sigint) or sigterm
+	stopChan := make(chan os.Signal, 1)
+	signal.Notify(stopChan, os.Interrupt, syscall.SIGTERM)
+	<-stopChan
+
+	log.Println("Shutting down server...")
+
+	// grace period of 5 seconds to finish in-flight requests
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_ = server.Shutdown(ctx)
+	moviestate.Cleanup()
+	log.Println("Server exited successfully")
 }
