@@ -1,4 +1,3 @@
-
 package main
 
 import (
@@ -135,7 +134,7 @@ func main() {
 	room := NewRoom()
 
 	log.Printf("Room created..ID : %s (Host Token: %s)", room.ID, room.HostToken)
-	
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/stream", streamHandler(moviestate))
 	mux.HandleFunc("/api/upload", uploadHandler(moviestate))

@@ -5,12 +5,36 @@ import (
 	"encoding/hex"
 	"sync"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
+
+type Message struct {
+	Type      string  `json:"type"` // PLAY,SEEK,PAUSE,SYNC
+	Position  float64 `json:"position"`
+	IsPlaying bool    `json:"isPlaying"`
+	Count     int     `json:"count"`           // connected viewers count
+	Token     string  `json:"token,omitempty"` // host secret token for auth
+}
+
+type Client struct {
+	conn   *websocket.Conn
+	mu     sync.Mutex // protects concurrent writes to webscoket so
+	IsHost bool
+}
 
 type Room struct {
 	ID        string         `json:"id"`
 	HostToken string         `json:"hostToken"`
 	PlayBack  *PlaybackState `json:"playback"`
+	mu        sync.RWMutex
+	clients   map[*Client]bool
+}
+
+func (c *Client) Send(msg Message) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.conn.WriteJSON(msg)
 }
 
 // generateToken create a random hex string of given byte length
@@ -20,12 +44,13 @@ func generateToken(n int) string {
 	return hex.EncodeToString(bytes)
 }
 
-func NewRoom() *Room{
+func NewRoom() *Room {
 	return &Room{
-		ID : generateToken(4),
+		ID:        generateToken(4),
 		HostToken: generateToken(16),
+		clients:   make(map[*Client]bool),
 		PlayBack: &PlaybackState{
-			Position: 0,
+			Position:  0,
 			IsPlaying: false,
 			UpdatedAt: time.Now(),
 		},
