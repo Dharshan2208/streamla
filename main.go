@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -76,7 +78,23 @@ func uploadHandler(state *MovieState, room *Room) http.HandlerFunc {
 			return
 		}
 
+		// validating mp4 strcuture and seeakabilty
+		if err := validateMP4(tempFile); err != nil {
+			_ = os.Remove(tempFile.Name())
+			http.Error(w, "Upload rejected: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
 		state.Set(tempFile.Name(), header.Filename)
+
+		room.PlayBack.Update(0, false)
+
+		room.Broadcast(Message{
+			Type:      "MOVIE_CHANGED",
+			Position:  0,
+			IsPlaying: false,
+			Count:     room.ClientCount(),
+		})
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{
@@ -144,6 +162,58 @@ func (m *MovieState) Cleanup() {
 	}
 }
 
+// validateMP4 verifies that the file is an MP4 and has faststart (moov before mdat)
+func validateMP4(file *os.File) error {
+	var header [8]byte
+
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+
+	// 1. Check if first box is 'ftyp'
+	if _, err := io.ReadFull(file, header[:]); err != nil {
+		return fmt.Errorf("file too small")
+	}
+	if string(header[4:8]) != "ftyp" {
+		return fmt.Errorf("invalid format: file must be an MP4 (missing ftyp)")
+	}
+
+	// 2. Scan top-level boxes to check moov vs mdat order
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+
+	var seenMdat bool
+	for {
+		if _, err := io.ReadFull(file, header[:]); err != nil {
+			break // Reached EOF
+		}
+
+		size := binary.BigEndian.Uint32(header[0:4])
+		boxType := string(header[4:8])
+
+		if boxType == "moov" {
+			if seenMdat {
+				return fmt.Errorf("MP4 lacks FastStart: 'mdat' appears before 'moov' (seeking will fail)")
+			}
+			return nil // Valid MP4 with FastStart!
+		}
+		if boxType == "mdat" {
+			seenMdat = true
+		}
+
+		if size < 8 {
+			break
+		}
+		// Skip to the next box
+		if _, err := file.Seek(int64(size-8), io.SeekCurrent); err != nil {
+			break
+		}
+	}
+
+	return fmt.Errorf("invalid MP4: missing 'moov' metadata atom")
+}
+
 func main() {
 	// http.HandleFunc("/stream",streamHandler("song.mp3"))
 	moviestate := &MovieState{}
@@ -159,13 +229,13 @@ func main() {
 	mux.HandleFunc("/ws", wsHandler(room))
 
 	server := &http.Server{
-		Addr:    ":8080",
+		Addr:    ":6969",
 		Handler: mux,
 	}
 
 	go func() {
-		// log.Println("Server running on http://localhost:8080")
-		PrintBanner("8080", room.ID)
+		// log.Println("Server running on http://localhost:6969")
+		PrintBanner("6969", room.ID)
 		// err server closed prevents treating normal shutdown as a crash
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server error: %v", err)

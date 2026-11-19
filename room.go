@@ -60,7 +60,7 @@ func NewRoom() *Room {
 
 type PlaybackState struct {
 	mu        sync.RWMutex
-	Position  float64   `json:"Position"`
+	Position  float64   `json:"position"`
 	IsPlaying bool      `json:"isPlaying"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
@@ -98,7 +98,7 @@ func (r *Room) Join(c *Client) {
 	_ = c.Send(Message{
 		Type:      "SYNC",
 		Position:  r.PlayBack.CurrentPosition(),
-		IsPlaying: r.PlayBack.IsPlaying,
+		IsPlaying: r.PlayBack.Playing(),
 		Count:     count,
 	})
 
@@ -142,6 +142,12 @@ func (r *Room) Broadcast(msg Message) {
 			go r.Leave(c)
 		}
 	}
+}
+
+func (p *PlaybackState) Playing() bool {
+	p.mu.Lock()
+	defer p.mu.Lock()
+	return p.IsPlaying
 }
 
 var upgrader = websocket.Upgrader{
@@ -190,7 +196,7 @@ func wsHandler(room *Room) http.HandlerFunc {
 				if msg.Type == "PAUSE" {
 					isPlaying = false
 				} else if msg.Type == "SEEK" {
-					isPlaying = room.PlayBack.IsPlaying
+					isPlaying = room.PlayBack.Playing()
 				}
 
 				room.PlayBack.Update(msg.Position, isPlaying)
@@ -207,7 +213,7 @@ func wsHandler(room *Room) http.HandlerFunc {
 				_ = client.Send(Message{
 					Type:      "SYNC",
 					Position:  room.PlayBack.CurrentPosition(),
-					IsPlaying: room.PlayBack.IsPlaying,
+					IsPlaying: room.PlayBack.Playing(),
 					Count:     room.ClientCount(),
 				})
 			}

@@ -12,6 +12,7 @@ const uploadBtn = document.getElementById("upload-btn");
 const fileNameSpan = document.getElementById("file-name");
 const joinSection = document.getElementById("join-section");
 const joinBtn = document.getElementById("join-btn");
+const joinRoomInput = document.getElementById("join-room-input");
 const roomBadge = document.getElementById("room-badge");
 const roomIdSpan = document.getElementById("room-id");
 const viewersBadge = document.getElementById("viewers-badge");
@@ -25,12 +26,13 @@ async function init() {
     const res = await fetch("/api/info");
     const info = await res.json();
     roomIdSpan.textContent = info.roomId;
+    if (joinRoomInput) joinRoomInput.value = info.roomId;
 
     if (info.hasMovie) {
-      movieStatus.textContent = `Active Movie: ${info.filename}`;
-      joinSection.classList.remove("hidden");
+      movieStatus.textContent = `Movie: ${info.filename}`;
     } else {
-      movieStatus.textContent = "No movie selected. Host must upload a movie.";
+      movieStatus.textContent =
+        "No movie loaded yet. Ready for viewers to join.";
     }
   } catch (err) {
     movieStatus.textContent = "Unable to connect to server.";
@@ -57,6 +59,10 @@ uploadBtn.addEventListener("click", async () => {
 
   try {
     const res = await fetch("/api/upload", { method: "POST", body: formData });
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(errText);
+    }
     const data = await res.json();
 
     hostToken = data.hostToken;
@@ -67,6 +73,7 @@ uploadBtn.addEventListener("click", async () => {
   } catch (err) {
     alert("Upload failed: " + err.message);
     uploadBtn.disabled = false;
+    document.getElementById("upload-progress").classList.add("hidden");
   }
 });
 
@@ -84,7 +91,9 @@ function startPlayer() {
   roomBadge.classList.remove("hidden");
   viewersBadge.classList.remove("hidden");
 
-  video.load(); // Load the /stream source
+  // Always attach the stream endpoint
+  video.src = "/stream";
+  video.load();
 
   if (isHost) {
     video.controls = true;
@@ -97,7 +106,6 @@ function startPlayer() {
 
   connectWS();
 }
-
 // 5. WebSocket Connection & Sync
 function connectWS() {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
@@ -111,6 +119,14 @@ function connectWS() {
       viewerCountSpan.textContent = msg.count;
     }
 
+    if (msg.type == "MOVIE_CHANGED") {
+      // Reload the video stream for the new movie
+      video.src = "/stream?t=" + Date.now();
+      video.load();
+      video.currentTime = 0;
+      video.pause();
+      return;
+    }
     if (isHost) return; // Host controls their own player
 
     // Viewers mirror the server state:

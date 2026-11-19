@@ -13,43 +13,75 @@
         <div class="brand">Streamla</div>
         <div id="room-badge" class="badge hidden">
           Room: <span id="room-id"></span>
-          <button id="copy-btn" title="Copy Invite Link">Copy/button>
+          <button id="copy-btn" title="Copy Invite Link">Copy</button>
         </div>
         <div id="viewers-badge" class="badge hidden">
-          Viewers :  <span id="viewer-count">1</span>
+          Viewers : <span id="viewer-count">1</span>
         </div>
       </header>
 
       <!-- Main Player Area -->
       <main class="player-container">
         <!-- Welcome / Join / Upload Card -->
+        <!-- Welcome / Join / Upload Card -->
         <div id="setup-card" class="card">
-          <h2 id="setup-title">Watch Party</h2>
-          <p id="movie-status">Checking server status...</p>
+          <h2 id="setup-title">Streamla Watch Party</h2>
+          <p id="movie-status">Ready to connect</p>
+
+          <!-- Viewer Join Section (Always visible!) -->
+          <div id="join-section" class="form-group">
+            <input
+              type="text"
+              id="join-room-input"
+              placeholder="Room ID"
+              style="
+                padding: 10px;
+                border-radius: 8px;
+                border: 1px solid #363b57;
+                background: #1a1d29;
+                color: #fff;
+                width: 80%;
+                text-align: center;
+                font-size: 1rem;
+              "
+            />
+            <button id="join-btn" class="btn primary" style="width: 80%">
+              Join Watch Party
+            </button>
+          </div>
+
+          <hr
+            style="
+              border: 0;
+              border-top: 1px solid #25283b;
+              margin: 20px 0;
+              width: 100%;
+            "
+          />
 
           <!-- Host Upload Section -->
           <div id="upload-section" class="form-group">
+            <span style="font-size: 0.85rem; color: #8f94a6"
+              >Hosting on this machine?</span
+            >
             <label class="btn-file">
-              Choose Movie File (.mp4)
+              Choose Movie (.mp4)
               <input type="file" id="movie-input" accept="video/mp4" hidden />
             </label>
-            <span id="file-name"></span>
-            <button id="upload-btn" class="btn primary" disabled>
-              Start Hosting
-            </button>
-            <div id="upload-progress" class="hidden">Uploading...</div>
-          </div>
-
-          <!-- Viewer Join Section -->
-          <div id="join-section" class="form-group hidden">
-            <button id="join-btn" class="btn primary">Join Watch Party</button>
+            <span
+              id="file-name"
+              style="font-size: 0.8rem; color: #a5b4fc"
+            ></span>
+            <button id="upload-btn" class="btn" disabled>Start Hosting</button>
+            <div id="upload-progress" class="hidden">
+              Uploading movie to LAN...
+            </div>
           </div>
         </div>
 
         <!-- Video Player -->
         <div id="video-wrapper" class="hidden">
           <video id="player" playsinline preload="auto">
-            <source src="/stream" type="video/mp4" />
             Your browser does not support HTML5 video.
           </video>
           <div id="role-tag" class="role-tag">Viewer Mode (Synced)</div>
