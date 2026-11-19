@@ -138,6 +138,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/stream", streamHandler(moviestate))
 	mux.HandleFunc("/api/upload", uploadHandler(moviestate))
+	mux.HandleFunc("/ws", wsHandler(room))
 
 	server := &http.Server{
 		Addr:    ":8080",
