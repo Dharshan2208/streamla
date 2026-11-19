@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Streamla — Watch Party</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- Header bar -->
+      <header class="navbar">
+        <div class="brand">Streamla</div>
+        <div id="room-badge" class="badge hidden">
+          Room: <span id="room-id"></span>
+          <button id="copy-btn" title="Copy Invite Link">Copy/button>
+        </div>
+        <div id="viewers-badge" class="badge hidden">
+          Viewers :  <span id="viewer-count">1</span>
+        </div>
+      </header>
+
+      <!-- Main Player Area -->
+      <main class="player-container">
+        <!-- Welcome / Join / Upload Card -->
+        <div id="setup-card" class="card">
+          <h2 id="setup-title">Watch Party</h2>
+          <p id="movie-status">Checking server status...</p>
+
+          <!-- Host Upload Section -->
+          <div id="upload-section" class="form-group">
+            <label class="btn-file">
+              Choose Movie File (.mp4)
+              <input type="file" id="movie-input" accept="video/mp4" hidden />
+            </label>
+            <span id="file-name"></span>
+            <button id="upload-btn" class="btn primary" disabled>
+              Start Hosting
+            </button>
+            <div id="upload-progress" class="hidden">Uploading...</div>
+          </div>
+
+          <!-- Viewer Join Section -->
+          <div id="join-section" class="form-group hidden">
+            <button id="join-btn" class="btn primary">Join Watch Party</button>
+          </div>
+        </div>
+
+        <!-- Video Player -->
+        <div id="video-wrapper" class="hidden">
+          <video id="player" playsinline preload="auto">
+            <source src="/stream" type="video/mp4" />
+            Your browser does not support HTML5 video.
+          </video>
+          <div id="role-tag" class="role-tag">Viewer Mode (Synced)</div>
+        </div>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

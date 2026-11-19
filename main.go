@@ -33,7 +33,7 @@ func (m *MovieState) Set(path, name string) {
 
 func (m *MovieState) Get() (path, name string, ok bool) {
 	m.mu.RLock()
-	defer m.mu.Unlock()
+	defer m.mu.RUnlock()
 
 	if m.filePath == "" {
 		return "", "", false
@@ -45,7 +45,7 @@ func (m *MovieState) Get() (path, name string, ok bool) {
 // 10GB
 const maxUploadSize = 10 << 30
 
-func uploadHandler(state *MovieState) http.HandlerFunc {
+func uploadHandler(state *MovieState, room *Room) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -80,8 +80,24 @@ func uploadHandler(state *MovieState) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{
-			"message":  "Uploaded successfully",
-			"filename": header.Filename,
+			"message":   "Uploaded successfully",
+			"filename":  header.Filename,
+			"roomID":    room.ID,
+			"hostToken": room.HostToken,
+		})
+	}
+}
+
+func infoHandler(state *MovieState, room *Room) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		_, name, hasMovie := state.Get()
+
+		w.Header().Set("Content-Type", "application/json")
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"roomId":   room.ID,
+			"hasMovie": hasMovie,
+			"filename": name,
 		})
 	}
 }
@@ -137,7 +153,9 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/stream", streamHandler(moviestate))
-	mux.HandleFunc("/api/upload", uploadHandler(moviestate))
+	mux.HandleFunc("/api/upload", uploadHandler(moviestate, room))
+	mux.HandleFunc("/api/info", infoHandler(moviestate, room))
+	mux.Handle("/", http.FileServer(http.Dir("./static")))
 	mux.HandleFunc("/ws", wsHandler(room))
 
 	server := &http.Server{

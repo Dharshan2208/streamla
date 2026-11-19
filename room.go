@@ -180,29 +180,37 @@ func wsHandler(room *Room) http.HandlerFunc {
 				break
 			}
 
-			// secutiy : only the host may control the playback
-			if msg.Type == "PLAY" || msg.Type == "PAUSE" || msg.Type == "SEEK" {
-				if !client.IsHost {
-					continue
-				}
-			}
-
-			isPlaying := (msg.Type == "PLAY")
 			switch msg.Type {
-			case "PAUSE":
-				isPlaying = false
-			case "SEEK":
-				isPlaying = room.PlayBack.IsPlaying
+			case "PLAY", "PAUSE", "SEEK":
+				if !client.IsHost {
+					continue // viewers cannot control playback
+				}
+
+				isPlaying := (msg.Type == "PLAY")
+				if msg.Type == "PAUSE" {
+					isPlaying = false
+				} else if msg.Type == "SEEK" {
+					isPlaying = room.PlayBack.IsPlaying
+				}
+
+				room.PlayBack.Update(msg.Position, isPlaying)
+
+				room.Broadcast(Message{
+					Type:      msg.Type,
+					Position:  msg.Position,
+					IsPlaying: isPlaying,
+					Count:     room.ClientCount(),
+				})
+
+			case "SYNC":
+				// Client asking for current position to correct clock drift
+				_ = client.Send(Message{
+					Type:      "SYNC",
+					Position:  room.PlayBack.CurrentPosition(),
+					IsPlaying: room.PlayBack.IsPlaying,
+					Count:     room.ClientCount(),
+				})
 			}
-
-			room.PlayBack.Update(msg.Position, isPlaying)
-
-			room.Broadcast(Message{
-				Type:      msg.Type,
-				Position:  msg.Position,
-				IsPlaying: isPlaying,
-				Count:     room.ClientCount(),
-			})
 		}
 	}
 }

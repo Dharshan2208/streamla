@@ -1,0 +1,158 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+  background-color: #0b0c10;
+  color: #e0e2ec;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* Navbar */
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background: #13141c;
+  border-bottom: 1px solid #1f2230;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 1.2rem;
+  letter-spacing: 0.5px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #1d202e;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  border: 1px solid #2d3148;
+}
+
+#copy-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+/* Center Container */
+.player-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: radial-gradient(circle at center, #161822 0%, #0b0c10 100%);
+}
+
+/* Setup Card */
+.card {
+  background: #141622;
+  padding: 32px;
+  border-radius: 12px;
+  border: 1px solid #25283b;
+  text-align: center;
+  max-width: 440px;
+  width: 100%;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.card h2 {
+  margin-bottom: 12px;
+}
+
+.card p {
+  color: #8f94a6;
+  font-size: 0.95rem;
+  margin-bottom: 24px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+}
+
+/* Buttons */
+.btn,
+.btn-file {
+  display: inline-block;
+  background: #25293d;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 1px solid #363b57;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.btn.primary {
+  background: #4f46e5;
+  border-color: #6366f1;
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: #4338ca;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Video Wrapper */
+#video-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 1100px;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+}
+
+video {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.role-tag {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: rgba(15, 17, 26, 0.75);
+  backdrop-filter: blur(8px);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  pointer-events: none;
+}
+
+.hidden {
+  display: none !important;
+}
