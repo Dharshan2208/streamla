@@ -1,3 +1,4 @@
+
 package main
 
 import (
@@ -118,7 +119,7 @@ func (m *MovieState) Cleanup() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.filePath == "" {
+	if m.filePath != "" {
 		_ = os.Remove(m.filePath)
 
 		m.filePath = ""
@@ -131,7 +132,10 @@ func (m *MovieState) Cleanup() {
 func main() {
 	// http.HandleFunc("/stream",streamHandler("song.mp3"))
 	moviestate := &MovieState{}
+	room := NewRoom()
 
+	log.Printf("Room created..ID : %s (Host Token: %s)", room.ID, room.HostToken)
+	
 	mux := http.NewServeMux()
 	mux.HandleFunc("/stream", streamHandler(moviestate))
 	mux.HandleFunc("/api/upload", uploadHandler(moviestate))
