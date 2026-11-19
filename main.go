@@ -164,7 +164,8 @@ func main() {
 	}
 
 	go func() {
-		log.Println("Server running on http://localhost:8080")
+		// log.Println("Server running on http://localhost:8080")
+		PrintBanner("8080", room.ID)
 		// err server closed prevents treating normal shutdown as a crash
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server error: %v", err)
