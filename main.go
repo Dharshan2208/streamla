@@ -94,7 +94,7 @@ func main() {
 	}
 
 	go func() {
-		discovery.PrintBanner(*port, rm.ID)
+		discovery.PrintBanner(*port, rm.ID, rm.HostToken)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server error: %v", err)
 		}

@@ -3,6 +3,7 @@ package media
 import (
 	"encoding/json"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -101,6 +102,16 @@ func UploadHandler(state *MovieState, r *room.Room) http.HandlerFunc {
 	}
 }
 
+// isLoopback reports whether the remote address is a local loopback interface (localhost).
+func isLoopback(remoteAddr string) bool {
+	host, _, err := net.SplitHostPort(remoteAddr)
+	if err != nil {
+		host = remoteAddr
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
 // InfoHandler returns current room metadata, loaded movie info, audio tracks, and subtitles.
 func InfoHandler(state *MovieState, r *room.Room) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
@@ -116,15 +127,28 @@ func InfoHandler(state *MovieState, r *room.Room) http.HandlerFunc {
 			duration = probe.Duration
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{
+		tokenParam := req.URL.Query().Get("token")
+		if tokenParam == "" {
+			tokenParam = req.Header.Get("X-Host-Token")
+		}
+		isTokenValid := tokenParam != "" && tokenParam == r.HostToken
+		isLocal := isLoopback(req.RemoteAddr) || isTokenValid
+
+		resp := map[string]any{
 			"roomId":      r.ID,
 			"hasMovie":    hasMovie,
 			"filename":    name,
 			"duration":    duration,
 			"audioTracks": audioTracks,
 			"subtitles":   subtitles,
-		})
+			"isHost":      isLocal,
+		}
+		if isLocal {
+			resp["hostToken"] = r.HostToken
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
 	}
 }
 

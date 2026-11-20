@@ -10,16 +10,18 @@ import (
 )
 
 // PrintBanner outputs the LAN access URL and ASCII QR code to the terminal.
-func PrintBanner(port, roomID string) {
+func PrintBanner(port, roomID, hostToken string) {
 	ip := GetLocalIP()
-	url := fmt.Sprintf("http://%s:%s", ip, port)
+	lanURL := fmt.Sprintf("http://%s:%s", ip, port)
+	hostURL := fmt.Sprintf("http://localhost:%s/?token=%s", port, hostToken)
 
 	fmt.Println("==================================================")
 	fmt.Println("       STREAMLA — LAN Watch Party Server          ")
 	fmt.Println("==================================================")
 	fmt.Printf("Room ID:        %s\n", roomID)
-	fmt.Printf("LAN URL:        %s\n", url)
-	fmt.Println("Scan to join from phone or laptop:")
+	fmt.Printf("Host URL:       %s\n", hostURL)
+	fmt.Printf("LAN URL:        %s\n", lanURL)
+	fmt.Println("Scan QR to join from phone or second laptop:")
 	fmt.Println()
 
 	config := qrterminal.Config{
@@ -29,7 +31,7 @@ func PrintBanner(port, roomID string) {
 		WhiteChar: qrterminal.WHITE,
 		QuietZone: 1,
 	}
-	qrterminal.GenerateWithConfig(url, config)
+	qrterminal.GenerateWithConfig(lanURL, config)
 	fmt.Println("==================================================")
 }
 

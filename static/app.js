@@ -38,14 +38,30 @@ if (urlParams.get("token")) {
 // 1. Initial State Check & Track Population
 async function init() {
   try {
-    const res = await fetch("/api/info");
+    const res = await fetch("/api/info" + (hostToken ? `?token=${encodeURIComponent(hostToken)}` : ""));
     const info = await res.json();
     roomIdSpan.textContent = info.roomId;
     if (joinRoomInput) joinRoomInput.value = info.roomId;
 
+    if (info.isHost && info.hostToken) {
+      hostToken = info.hostToken;
+      sessionStorage.setItem("streamla_token", hostToken);
+      isHost = true;
+    }
+
     if (info.hasMovie) {
-      movieStatus.textContent = `Movie: ${info.filename}`;
+      movieStatus.textContent = `🎬 Now Showing: ${info.filename}`;
       populateMediaTracks(info);
+      if (joinRoomInput) joinRoomInput.style.display = "none";
+      const uploadSec = document.getElementById("upload-section");
+      if (uploadSec) uploadSec.style.display = "none";
+      const hr = document.querySelector("#setup-card hr");
+      if (hr) hr.style.display = "none";
+      if (joinBtn) {
+        joinBtn.textContent = isHost ? "▶ Start Watching (Host)" : "▶ Join Watch Party";
+        joinBtn.style.padding = "14px 20px";
+        joinBtn.style.fontSize = "1.1rem";
+      }
     } else {
       movieStatus.textContent =
         "No movie loaded yet. Ready for viewers to join.";
@@ -203,17 +219,6 @@ function startPlayer() {
     video.load();
   }
 
-  // Autoplay unlock gesture
-  video
-    .play()
-    .then(() => {
-      // Audio session successfully unlocked
-      if (!isHost) {
-        video.pause();
-      }
-    })
-    .catch(() => {});
-
   if (isHost) {
     video.controls = true;
     roleTag.textContent = "Host Mode (Playback Controller)";
@@ -223,6 +228,19 @@ function startPlayer() {
     video.controls = false;
     roleTag.textContent = "Viewer Mode (Synced)";
   }
+
+  // Autoplay unlock gesture
+  video
+    .play()
+    .then(() => {
+      // Audio session successfully unlocked
+      if (!isHost) {
+        video.pause();
+      }
+    })
+    .catch((err) => {
+      console.log("Autoplay waiting for playback gesture:", err);
+    });
 
   connectWS();
 }
