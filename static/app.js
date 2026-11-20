@@ -535,7 +535,7 @@ function setupHostListeners() {
   });
 }
 
-// 10. Share Link Copy
+// 10. Share Link Copy & QR Code Modal
 copyBtn.addEventListener("click", () => {
   navigator.clipboard.writeText(window.location.origin);
   copyBtn.textContent = "Done";
@@ -543,5 +543,43 @@ copyBtn.addEventListener("click", () => {
     copyBtn.textContent = "Copy";
   }, 2000);
 });
+
+const qrBtn = document.getElementById("qr-btn");
+const qrModal = document.getElementById("qr-modal");
+const closeQrBtn = document.getElementById("close-qr-btn");
+const qrUrlText = document.getElementById("qr-url-text");
+const fullscreenBtn = document.getElementById("fullscreen-btn");
+
+if (qrBtn && qrModal && closeQrBtn) {
+  qrBtn.addEventListener("click", () => {
+    if (qrUrlText) qrUrlText.textContent = window.location.origin;
+    qrModal.classList.remove("hidden");
+  });
+  closeQrBtn.addEventListener("click", () => {
+    qrModal.classList.add("hidden");
+  });
+  qrModal.addEventListener("click", (e) => {
+    if (e.target === qrModal) {
+      qrModal.classList.add("hidden");
+    }
+  });
+}
+
+// 11. Fullscreen Toggle
+if (fullscreenBtn) {
+  fullscreenBtn.addEventListener("click", () => {
+    if (!document.fullscreenElement) {
+      if (videoWrapper.requestFullscreen) {
+        videoWrapper.requestFullscreen().catch(() => {});
+      } else if (video.requestFullscreen) {
+        video.requestFullscreen().catch(() => {});
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+  });
+}
 
 init();

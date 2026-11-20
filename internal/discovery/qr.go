@@ -2,9 +2,11 @@ package discovery
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/mdp/qrterminal/v3"
+	"rsc.io/qr"
 )
 
 // PrintBanner outputs the LAN access URL and ASCII QR code to the terminal.
@@ -29,4 +31,22 @@ func PrintBanner(port, roomID string) {
 	}
 	qrterminal.GenerateWithConfig(url, config)
 	fmt.Println("==================================================")
+}
+
+// QRHandler returns an HTTP handler serving a PNG QR code for the LAN access URL.
+func QRHandler(port string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ip := GetLocalIP()
+		url := fmt.Sprintf("http://%s:%s", ip, port)
+
+		code, err := qr.Encode(url, qr.M)
+		if err != nil {
+			http.Error(w, "Failed to generate QR code", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "image/png")
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		_, _ = w.Write(code.PNG())
+	}
 }

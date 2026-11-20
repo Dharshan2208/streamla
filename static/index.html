@@ -18,6 +18,7 @@
           <div id="room-badge" class="badge hidden">
             Room: <span id="room-id"></span>
             <button id="copy-btn" title="Copy Invite Link">Copy</button>
+            <button id="qr-btn" class="btn-small" style="padding: 2px 6px; font-size: 0.75rem;" title="Show QR Code">QR</button>
           </div>
           <div id="viewers-badge" class="badge hidden">
             Viewers: <span id="viewer-count">1</span>
@@ -82,6 +83,16 @@
               Uploading movie to LAN...
             </div>
           </div>
+
+          <details class="lan-help">
+            <summary>Trouble connecting from other devices?</summary>
+            <div class="lan-help-content">
+              <p>1. Ensure all devices are on the exact same Wi-Fi network.</p>
+              <p>2. If devices can't reach this address, your router may have <strong>AP/Client Isolation</strong> enabled.</p>
+              <p>3. <strong>Instant Fix:</strong> Turn on your laptop's Wi-Fi Hotspot or run:</p>
+              <code>nmcli dev wifi hotspot ifname wlan0 ssid StreamlaParty password moviepass</code>
+            </div>
+          </details>
         </div>
 
         <!-- Video Player -->
@@ -106,10 +117,27 @@
                   <option value="off">Off</option>
                 </select>
               </div>
+              <!-- Fullscreen Button -->
+              <button id="fullscreen-btn" class="btn-small" title="Toggle Fullscreen">Fullscreen</button>
             </div>
           </div>
         </div>
       </main>
+
+      <!-- QR Code Modal -->
+      <div id="qr-modal" class="modal hidden">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Scan to Join Watch Party</h3>
+            <button id="close-qr-btn" class="close-btn">&times;</button>
+          </div>
+          <div class="modal-body">
+            <img id="qr-image" src="/api/qr" alt="LAN Join QR Code" />
+            <p id="qr-url-text" class="qr-url"></p>
+            <p class="qr-hint">Scan with your phone camera on the same Wi-Fi.</p>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script src="app.js"></script>

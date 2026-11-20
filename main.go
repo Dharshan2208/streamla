@@ -74,6 +74,7 @@ func main() {
 	mux.HandleFunc("/api/upload", media.UploadHandler(movieState, rm))
 	mux.HandleFunc("/api/info", media.InfoHandler(movieState, rm))
 	mux.HandleFunc("/api/subtitles", media.SubtitleHandler(movieState))
+	mux.HandleFunc("/api/qr", discovery.QRHandler(*port))
 	mux.HandleFunc("/ws", room.WSHandler(rm))
 	mux.Handle("/", http.FileServer(http.FS(staticSub)))
 
