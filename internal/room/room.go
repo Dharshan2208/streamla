@@ -1,9 +1,11 @@
 package room
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"sync"
+	"time"
 )
 
 // Room represents a single watch party session.
@@ -48,10 +50,11 @@ func (r *Room) Join(c *Client) {
 
 	// 1. Send current state immediately to the joining viewer
 	_ = c.Send(Message{
-		Type:      "SYNC",
-		Position:  r.PlayBack.CurrentPosition(),
-		IsPlaying: r.PlayBack.Playing(),
-		Count:     count,
+		Type:       "SYNC",
+		Position:   r.PlayBack.CurrentPosition(),
+		IsPlaying:  r.PlayBack.Playing(),
+		ServerTime: float64(time.Now().UnixMilli()),
+		Count:      count,
 	})
 
 	// 2. Broadcast updated participant count to all clients
@@ -92,6 +95,30 @@ func (r *Room) Broadcast(msg Message) {
 	for _, c := range clientList {
 		if err := c.Send(msg); err != nil {
 			go r.Leave(c)
+		}
+	}
+}
+
+// StartHeartbeat periodically broadcasts authoritative timeline state to all clients.
+func (r *Room) StartHeartbeat(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if r.ClientCount() == 0 {
+				continue
+			}
+			r.Broadcast(Message{
+				Type:       "HEARTBEAT",
+				Position:   r.PlayBack.CurrentPosition(),
+				IsPlaying:  r.PlayBack.Playing(),
+				ServerTime: float64(time.Now().UnixMilli()),
+				Count:      r.ClientCount(),
+			})
 		}
 	}
 }

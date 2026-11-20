@@ -11,12 +11,17 @@
       <!-- Header bar -->
       <header class="navbar">
         <div class="brand">Streamla</div>
-        <div id="room-badge" class="badge hidden">
-          Room: <span id="room-id"></span>
-          <button id="copy-btn" title="Copy Invite Link">Copy</button>
-        </div>
-        <div id="viewers-badge" class="badge hidden">
-          Viewers : <span id="viewer-count">1</span>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <div id="sync-badge" class="badge hidden">
+            <span id="sync-status">Sync: Locked</span>
+          </div>
+          <div id="room-badge" class="badge hidden">
+            Room: <span id="room-id"></span>
+            <button id="copy-btn" title="Copy Invite Link">Copy</button>
+          </div>
+          <div id="viewers-badge" class="badge hidden">
+            Viewers: <span id="viewer-count">1</span>
+          </div>
         </div>
       </header>
 

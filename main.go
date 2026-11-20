@@ -54,6 +54,11 @@ func main() {
 
 	log.Printf("Room created: ID %s (Host Token: %s)", rm.ID, rm.HostToken)
 
+	// Start room heartbeat loop for continuous drift telemetry
+	heartbeatCtx, cancelHeartbeat := context.WithCancel(context.Background())
+	defer cancelHeartbeat()
+	go rm.StartHeartbeat(heartbeatCtx, time.Second)
+
 	// Sub-tree for embedded static web assets
 	staticSub, err := fs.Sub(staticFS, "static")
 	if err != nil {
