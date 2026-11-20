@@ -6,12 +6,13 @@ import (
 	"sync"
 )
 
-// MovieState safely manages the active movie file on disk.
+// MovieState safely manages the active movie file and its probed metadata on disk.
 type MovieState struct {
 	mu           sync.RWMutex
 	filePath     string
 	originalName string
 	isTemp       bool
+	probe        *MediaProbeResult
 }
 
 // NewMovieState initializes a MovieState instance.
@@ -19,8 +20,7 @@ func NewMovieState() *MovieState {
 	return &MovieState{}
 }
 
-// Set updates the active movie file. If the previous file was a temporary upload,
-// it deletes it to conserve disk space.
+// Set updates the active movie file and probes its stream metadata.
 func (m *MovieState) Set(path, name string, isTemp bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -32,18 +32,30 @@ func (m *MovieState) Set(path, name string, isTemp bool) {
 	m.filePath = path
 	m.originalName = name
 	m.isTemp = isTemp
+
+	// Probe stream codecs, audio tracks, and subtitles
+	if probe, err := ProbeMedia(path); err == nil {
+		m.probe = probe
+	} else {
+		log.Printf("Warning: ffprobe failed for %q: %v", path, err)
+		m.probe = &MediaProbeResult{
+			FormatName: "unknown",
+			Audio:      []StreamInfo{},
+			Subtitles:  []StreamInfo{},
+		}
+	}
 }
 
-// Get returns the current active movie path, original filename, and whether a movie is loaded.
-func (m *MovieState) Get() (path, name string, ok bool) {
+// Get returns the current active movie path, original filename, probe metadata, and whether loaded.
+func (m *MovieState) Get() (path, name string, probe *MediaProbeResult, ok bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	if m.filePath == "" {
-		return "", "", false
+		return "", "", nil, false
 	}
 
-	return m.filePath, m.originalName, true
+	return m.filePath, m.originalName, m.probe, true
 }
 
 // Cleanup removes any temporary uploaded file on server shutdown.
@@ -56,6 +68,7 @@ func (m *MovieState) Cleanup() {
 		m.filePath = ""
 		m.originalName = ""
 		m.isTemp = false
+		m.probe = nil
 		log.Println("Temporary movie file cleaned up")
 	}
 }

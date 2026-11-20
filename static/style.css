@@ -156,3 +156,43 @@ video {
 .hidden {
   display: none !important;
 }
+
+.player-controls-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: #13141c;
+  border-top: 1px solid #1f2230;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.track-selectors {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.selector-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #8f94a6;
+}
+
+.track-select {
+  background: #1a1d29;
+  color: #e0e2ec;
+  border: 1px solid #363b57;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+  outline: none;
+  cursor: pointer;
+}
+
+.track-select:focus {
+  border-color: #6366f1;
+}

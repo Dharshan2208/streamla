@@ -22,6 +22,11 @@ const syncStatusSpan = document.getElementById("sync-status");
 const roleTag = document.getElementById("role-tag");
 const copyBtn = document.getElementById("copy-btn");
 
+const audioTrackGroup = document.getElementById("audio-track-group");
+const audioSelect = document.getElementById("audio-select");
+const subtitleTrackGroup = document.getElementById("subtitle-track-group");
+const subtitleSelect = document.getElementById("subtitle-select");
+
 // Check query param for host token on initial load
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get("token")) {
@@ -30,7 +35,7 @@ if (urlParams.get("token")) {
   isHost = true;
 }
 
-// 1. Initial State Check
+// 1. Initial State Check & Track Population
 async function init() {
   try {
     const res = await fetch("/api/info");
@@ -40,6 +45,7 @@ async function init() {
 
     if (info.hasMovie) {
       movieStatus.textContent = `Movie: ${info.filename}`;
+      populateMediaTracks(info);
     } else {
       movieStatus.textContent =
         "No movie loaded yet. Ready for viewers to join.";
@@ -48,6 +54,76 @@ async function init() {
     movieStatus.textContent = "Unable to connect to server.";
   }
 }
+
+function populateMediaTracks(info) {
+  if (info.audioTracks && info.audioTracks.length > 1) {
+    audioTrackGroup.classList.remove("hidden");
+    audioSelect.innerHTML = "";
+    info.audioTracks.forEach((t) => {
+      const opt = document.createElement("option");
+      opt.value = t.index;
+      opt.textContent = `${t.language.toUpperCase()} (${t.codec})${t.title ? " - " + t.title : ""}`;
+      audioSelect.appendChild(opt);
+    });
+  } else {
+    audioTrackGroup.classList.add("hidden");
+  }
+
+  if (info.subtitles && info.subtitles.length > 0) {
+    subtitleTrackGroup.classList.remove("hidden");
+    subtitleSelect.innerHTML = '<option value="off">Off</option>';
+    info.subtitles.forEach((s) => {
+      const opt = document.createElement("option");
+      opt.value = s.index === -1 ? "external" : s.index;
+      opt.textContent = s.title || `${s.language.toUpperCase()} (${s.codec})`;
+      subtitleSelect.appendChild(opt);
+    });
+  } else {
+    subtitleTrackGroup.classList.add("hidden");
+  }
+}
+
+// Subtitle & Audio Select Listeners
+subtitleSelect.addEventListener("change", () => {
+  const tracks = video.querySelectorAll("track");
+  tracks.forEach((t) => t.remove());
+
+  if (subtitleSelect.value === "off") return;
+
+  const track = document.createElement("track");
+  track.kind = "subtitles";
+  track.label = subtitleSelect.options[subtitleSelect.selectedIndex].text;
+  track.srclang = "en";
+  track.src = `/api/subtitles?track=${encodeURIComponent(subtitleSelect.value)}`;
+  track.default = true;
+  video.appendChild(track);
+  track.track.mode = "showing";
+});
+
+audioSelect.addEventListener("change", () => {
+  const currentPos = video.currentTime;
+  const wasPlaying = !video.paused;
+
+  isProgrammaticChange = true;
+  video.src = `/stream?audio=${encodeURIComponent(audioSelect.value)}`;
+  video.load();
+  video.currentTime = currentPos;
+
+  if (wasPlaying) {
+    video
+      .play()
+      .catch(() => {})
+      .finally(() => {
+        setTimeout(() => {
+          isProgrammaticChange = false;
+        }, 300);
+      });
+  } else {
+    setTimeout(() => {
+      isProgrammaticChange = false;
+    }, 300);
+  }
+});
 
 // 2. File Selection & Upload (Host UI fallback)
 movieInput.addEventListener("change", () => {
@@ -79,6 +155,7 @@ uploadBtn.addEventListener("click", async () => {
     sessionStorage.setItem("streamla_token", hostToken);
     isHost = true;
 
+    await init();
     startPlayer();
   } catch (err) {
     alert("Upload failed: " + err.message);
@@ -120,9 +197,11 @@ function startPlayer() {
   // Request Wake Lock
   requestWakeLock();
 
-  // Attach stream endpoint
-  video.src = "/stream";
-  video.load();
+  // Attach stream endpoint if not already set
+  if (!video.src || video.src === window.location.href) {
+    video.src = "/stream";
+    video.load();
+  }
 
   // Autoplay unlock gesture
   video
@@ -277,6 +356,7 @@ function connectWS() {
         break;
 
       case "MOVIE_CHANGED":
+        init();
         video.src = "/stream?t=" + Date.now();
         video.load();
         video.currentTime = 0;

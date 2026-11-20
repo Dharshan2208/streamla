@@ -89,7 +89,25 @@
           <video id="player" playsinline preload="auto">
             Your browser does not support HTML5 video.
           </video>
-          <div id="role-tag" class="role-tag">Viewer Mode (Synced)</div>
+          <div class="player-controls-bar">
+            <div id="role-tag" class="role-tag" style="position: static;">Viewer Mode (Synced)</div>
+            <div class="track-selectors">
+              <!-- Audio Track Selection -->
+              <div id="audio-track-group" class="selector-group hidden">
+                <label for="audio-select">Audio:</label>
+                <select id="audio-select" class="track-select">
+                  <option value="default">Default</option>
+                </select>
+              </div>
+              <!-- Subtitle Selection -->
+              <div id="subtitle-track-group" class="selector-group hidden">
+                <label for="subtitle-select">Subtitles:</label>
+                <select id="subtitle-select" class="track-select">
+                  <option value="off">Off</option>
+                </select>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
     </div>

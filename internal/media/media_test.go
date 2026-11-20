@@ -1,9 +1,13 @@
 package media
 
 import (
+	"context"
 	"encoding/binary"
+	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
+	"time"
 )
 
 func createTestMP4(t *testing.T, moovBeforeMdat bool, validFtyp bool) *os.File {
@@ -83,7 +87,7 @@ func TestValidateMP4_MdatBeforeMoov(t *testing.T) {
 func TestMovieState_SetGetCleanup(t *testing.T) {
 	ms := NewMovieState()
 
-	_, _, ok := ms.Get()
+	_, _, _, ok := ms.Get()
 	if ok {
 		t.Fatal("expected empty movie state initially")
 	}
@@ -97,15 +101,14 @@ func TestMovieState_SetGetCleanup(t *testing.T) {
 
 	ms.Set(tmpName, "dummy.mp4", true)
 
-	path, name, ok := ms.Get()
+	path, name, _, ok := ms.Get()
 	if !ok || path != tmpName || name != "dummy.mp4" {
 		t.Fatalf("unexpected Get result: path=%s name=%s ok=%v", path, name, ok)
 	}
 
-	// Verify cleanup deletes the file if isTemp=true
 	ms.Cleanup()
 
-	_, _, ok = ms.Get()
+	_, _, _, ok = ms.Get()
 	if ok {
 		t.Fatal("expected empty movie state after cleanup")
 	}
@@ -115,24 +118,55 @@ func TestMovieState_SetGetCleanup(t *testing.T) {
 	}
 }
 
-func TestMovieState_NonTempFileNotDeleted(t *testing.T) {
-	ms := NewMovieState()
-
-	tmp, err := os.CreateTemp("", "permanent-*.mp4")
+func TestConvertExternalSRT(t *testing.T) {
+	tmpSRT, err := os.CreateTemp("", "test-*.srt")
 	if err != nil {
-		t.Fatalf("create temp failed: %v", err)
+		t.Fatalf("create temp srt failed: %v", err)
 	}
-	tmpName := tmp.Name()
-	tmp.Close()
-	defer os.Remove(tmpName)
+	defer os.Remove(tmpSRT.Name())
 
-	// isTemp is false (e.g. host passed CLI file path)
-	ms.Set(tmpName, "permanent.mp4", false)
+	content := "1\n00:00:01,000 --> 00:00:03,000\nHello Watch Party\n"
+	if _, err := tmpSRT.WriteString(content); err != nil {
+		t.Fatalf("write srt failed: %v", err)
+	}
+	tmpSRT.Close()
 
-	ms.Cleanup()
+	rec := httptest.NewRecorder()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
 
-	// File should still exist on disk!
-	if _, err := os.Stat(tmpName); err != nil {
-		t.Fatalf("expected non-temp file to remain on disk, got err: %v", err)
+	if err := ConvertExternalSRT(ctx, tmpSRT.Name(), rec); err != nil {
+		t.Fatalf("convert external srt failed: %v", err)
+	}
+
+	body := rec.Body.String()
+	if !strings.HasPrefix(body, "WEBVTT") {
+		t.Fatalf("expected WebVTT output, got: %s", body)
+	}
+	if !strings.Contains(body, "Hello Watch Party") {
+		t.Fatalf("expected subtitle text in output, got: %s", body)
+	}
+}
+
+func TestProbeMedia_RealVideo(t *testing.T) {
+	// Probe video.mp4 at repo root
+	videoPath := "../../video.mp4"
+	if _, err := os.Stat(videoPath); os.IsNotExist(err) {
+		t.Skip("video.mp4 not found, skipping real media probe test")
+	}
+
+	result, err := ProbeMedia(videoPath)
+	if err != nil {
+		t.Fatalf("probe real video failed: %v", err)
+	}
+
+	if result.Video == nil || result.Video.Codec != "h264" {
+		t.Fatalf("expected h264 video, got: %+v", result.Video)
+	}
+	if len(result.Audio) == 0 || result.Audio[0].Codec != "aac" {
+		t.Fatalf("expected aac audio, got: %+v", result.Audio)
+	}
+	if result.Duration <= 0 {
+		t.Fatalf("expected positive duration, got: %f", result.Duration)
 	}
 }

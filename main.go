@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -42,9 +43,12 @@ func main() {
 			log.Fatalf("Cannot open movie file %q: %v", absPath, err)
 		}
 
-		if err := media.ValidateMP4(f); err != nil {
-			_ = f.Close()
-			log.Fatalf("Movie validation failed for %q: %v", absPath, err)
+		ext := strings.ToLower(filepath.Ext(absPath))
+		if ext == ".mp4" || ext == ".m4v" {
+			if err := media.ValidateMP4(f); err != nil {
+				_ = f.Close()
+				log.Fatalf("Movie validation failed for %q: %v", absPath, err)
+			}
 		}
 		_ = f.Close()
 
@@ -69,6 +73,7 @@ func main() {
 	mux.HandleFunc("/stream", media.StreamHandler(movieState))
 	mux.HandleFunc("/api/upload", media.UploadHandler(movieState, rm))
 	mux.HandleFunc("/api/info", media.InfoHandler(movieState, rm))
+	mux.HandleFunc("/api/subtitles", media.SubtitleHandler(movieState))
 	mux.HandleFunc("/ws", room.WSHandler(rm))
 	mux.Handle("/", http.FileServer(http.FS(staticSub)))
 
