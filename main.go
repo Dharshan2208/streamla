@@ -39,6 +39,18 @@ func main() {
 			log.Fatalf("Invalid movie file path: %v", err)
 		}
 
+		if _, err := os.Stat(absPath); err != nil {
+			log.Fatalf("Movie file not found: %v", err)
+		}
+
+		// Probe media to check video codec compatibility before processing
+		probe, err := media.ProbeMedia(absPath)
+		if err != nil {
+			log.Printf("Warning: ffprobe failed for %q: %v", absPath, err)
+		} else if err := media.CheckCodecCompatibility(probe, absPath); err != nil {
+			log.Fatalf("Movie validation failed:\n%v", err)
+		}
+
 		effectivePath := absPath
 		ext := strings.ToLower(filepath.Ext(absPath))
 		if ext == ".mp4" || ext == ".m4v" {
@@ -76,8 +88,9 @@ func main() {
 	mux.Handle("/", http.FileServer(http.FS(staticSub)))
 
 	server := &http.Server{
-		Addr:    ":" + *port,
-		Handler: mux,
+		Addr:              ":" + *port,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	go func() {

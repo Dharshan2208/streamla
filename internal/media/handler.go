@@ -55,6 +55,16 @@ func UploadHandler(state *MovieState, r *room.Room) http.HandlerFunc {
 		effectivePath := tempFile.Name()
 		isTemp := true
 
+		// Probe the uploaded file to verify video codec compatibility before processing
+		probe, probeErr := ProbeMedia(tempFile.Name())
+		if probeErr == nil {
+			if compatErr := CheckCodecCompatibility(probe, header.Filename); compatErr != nil {
+				_ = os.Remove(tempFile.Name())
+				http.Error(w, "Upload rejected: "+compatErr.Error(), http.StatusBadRequest)
+				return
+			}
+		}
+
 		// If MP4, check FastStart box structure and auto-remux if needed
 		if !isMKV {
 			p, remuxed, err := EnsureFastStart(tempFile.Name(), false)
@@ -127,6 +137,15 @@ func StreamHandler(state *MovieState) http.HandlerFunc {
 			return
 		}
 
+		if probe != nil && probe.IsHEVC {
+			codec := "hevc"
+			if probe.Video != nil && probe.Video.Codec != "" {
+				codec = probe.Video.Codec
+			}
+			http.Error(w, "Unsupported video codec: "+codec+" (HEVC/H.265). Browser playback not supported.", http.StatusUnsupportedMediaType)
+			return
+		}
+
 		// Check if an alternate audio track was requested
 		audioParam := req.URL.Query().Get("audio")
 		var requestedAudioIndex = -1
@@ -178,6 +197,7 @@ func StreamHandler(state *MovieState) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "video/mp4")
+		w.Header().Set("Accept-Ranges", "bytes")
 		http.ServeContent(w, req, stat.Name(), stat.ModTime(), file)
 	}
 }

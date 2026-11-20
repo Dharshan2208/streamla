@@ -31,6 +31,30 @@ type MediaProbeResult struct {
 	Subtitles        []StreamInfo `json:"subtitles"`
 	ExternalSubtitle string       `json:"externalSubtitle,omitempty"` // path to adjacent .srt if found
 	NeedsRemux       bool         `json:"needsRemux"`
+	IsHEVC           bool         `json:"isHEVC"`
+}
+
+// HEVCTranscodeCommand returns the exact ffmpeg command string needed to transcode an HEVC file to H.264 MP4.
+func HEVCTranscodeCommand(inputPath string) string {
+	dir := filepath.Dir(inputPath)
+	base := filepath.Base(inputPath)
+	ext := filepath.Ext(base)
+	cleanName := strings.TrimSuffix(base, ext)
+	outputPath := filepath.Join(dir, cleanName+"_h264.mp4")
+	return fmt.Sprintf("ffmpeg -i %q -c:v libx264 -preset fast -crf 22 -c:a copy %q", inputPath, outputPath)
+}
+
+// CheckCodecCompatibility returns an error if the media contains a video codec incompatible with standard web browsers (such as HEVC/H.265).
+func CheckCodecCompatibility(probe *MediaProbeResult, filePath string) error {
+	if probe != nil && probe.IsHEVC {
+		codec := "hevc"
+		if probe.Video != nil && probe.Video.Codec != "" {
+			codec = probe.Video.Codec
+		}
+		return fmt.Errorf("unsupported video codec %q (H.265).\nWeb browsers (Firefox, Chrome on Linux, and default Windows Edge) cannot decode HEVC/H.265 natively in MP4.\nTo transcode this file to browser-compatible H.264, run:\n  %s",
+			codec, HEVCTranscodeCommand(filePath))
+	}
+	return nil
 }
 
 type ffprobeOutput struct {
@@ -102,6 +126,10 @@ func ProbeMedia(filePath string) (*MediaProbeResult, error) {
 		case "video":
 			if result.Video == nil {
 				result.Video = &info
+			}
+			codecLower := strings.ToLower(s.CodecName)
+			if codecLower == "hevc" || codecLower == "h265" || codecLower == "hev1" || codecLower == "hvc1" {
+				result.IsHEVC = true
 			}
 		case "audio":
 			result.Audio = append(result.Audio, info)

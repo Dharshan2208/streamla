@@ -1,9 +1,11 @@
 package media
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
@@ -170,5 +172,151 @@ func TestProbeMedia_RealVideo(t *testing.T) {
 	}
 	if result.Duration <= 0 {
 		t.Fatalf("expected positive duration, got: %f", result.Duration)
+	}
+}
+
+func TestCheckCodecCompatibility_HEVC(t *testing.T) {
+	probe := &MediaProbeResult{
+		IsHEVC: true,
+		Video: &StreamInfo{
+			Index: 0,
+			Type:  "video",
+			Codec: "hevc",
+		},
+	}
+	err := CheckCodecCompatibility(probe, "/path/to/movie.mp4")
+	if err == nil {
+		t.Fatal("expected error for HEVC video, got nil")
+	}
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "unsupported video codec") {
+		t.Errorf("expected 'unsupported video codec' in error, got: %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "ffmpeg -i \"/path/to/movie.mp4\" -c:v libx264 -preset fast -crf 22 -c:a copy \"/path/to/movie_h264.mp4\"") {
+		t.Errorf("expected exact ffmpeg transcode command in error, got: %s", errMsg)
+	}
+}
+
+func TestCheckCodecCompatibility_H264(t *testing.T) {
+	probe := &MediaProbeResult{
+		IsHEVC: false,
+		Video: &StreamInfo{
+			Index: 0,
+			Type:  "video",
+			Codec: "h264",
+		},
+	}
+	err := CheckCodecCompatibility(probe, "/path/to/movie.mp4")
+	if err != nil {
+		t.Fatalf("expected nil error for H.264 video, got: %v", err)
+	}
+}
+
+func TestStreamHandler_ByteRangeRequests(t *testing.T) {
+	// Create dummy test file with 100 bytes
+	tmp, err := os.CreateTemp("", "range-test-*.mp4")
+	if err != nil {
+		t.Fatalf("create temp: %v", err)
+	}
+	defer os.Remove(tmp.Name())
+
+	data := make([]byte, 100)
+	for i := range data {
+		data[i] = byte(i)
+	}
+	if _, err := tmp.Write(data); err != nil {
+		t.Fatalf("write data: %v", err)
+	}
+	_ = tmp.Close()
+
+	state := NewMovieState()
+	state.mu.Lock()
+	state.filePath = tmp.Name()
+	state.originalName = "test.mp4"
+	state.probe = &MediaProbeResult{IsHEVC: false}
+	state.mu.Unlock()
+
+	handler := StreamHandler(state)
+
+	// Test 1: Full request without Range
+	{
+		req := httptest.NewRequest(http.MethodGet, "/stream", nil)
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got: %d", rec.Code)
+		}
+		if rec.Header().Get("Accept-Ranges") != "bytes" {
+			t.Errorf("expected Accept-Ranges: bytes, got: %s", rec.Header().Get("Accept-Ranges"))
+		}
+		if rec.Body.Len() != 100 {
+			t.Errorf("expected 100 bytes, got: %d", rec.Body.Len())
+		}
+	}
+
+	// Test 2: Range request for first 10 bytes (0-9)
+	{
+		req := httptest.NewRequest(http.MethodGet, "/stream", nil)
+		req.Header.Set("Range", "bytes=0-9")
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+
+		if rec.Code != http.StatusPartialContent {
+			t.Fatalf("expected 206 Partial Content, got: %d", rec.Code)
+		}
+		if rec.Header().Get("Content-Range") != "bytes 0-9/100" {
+			t.Errorf("expected Content-Range 'bytes 0-9/100', got: %s", rec.Header().Get("Content-Range"))
+		}
+		if rec.Body.Len() != 10 {
+			t.Errorf("expected 10 bytes, got: %d", rec.Body.Len())
+		}
+		if !bytes.Equal(rec.Body.Bytes(), data[0:10]) {
+			t.Errorf("byte mismatch for range 0-9")
+		}
+	}
+
+	// Test 3: Range request for mid-file (50-69)
+	{
+		req := httptest.NewRequest(http.MethodGet, "/stream", nil)
+		req.Header.Set("Range", "bytes=50-69")
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+
+		if rec.Code != http.StatusPartialContent {
+			t.Fatalf("expected 206 Partial Content, got: %d", rec.Code)
+		}
+		if rec.Header().Get("Content-Range") != "bytes 50-69/100" {
+			t.Errorf("expected Content-Range 'bytes 50-69/100', got: %s", rec.Header().Get("Content-Range"))
+		}
+		if rec.Body.Len() != 20 {
+			t.Errorf("expected 20 bytes, got: %d", rec.Body.Len())
+		}
+		if !bytes.Equal(rec.Body.Bytes(), data[50:70]) {
+			t.Errorf("byte mismatch for range 50-69")
+		}
+	}
+}
+
+func TestStreamHandler_HEVC_Rejected(t *testing.T) {
+	state := NewMovieState()
+	state.mu.Lock()
+	state.filePath = "/dummy/hevc.mp4"
+	state.originalName = "hevc.mp4"
+	state.probe = &MediaProbeResult{
+		IsHEVC: true,
+		Video: &StreamInfo{
+			Codec: "hevc",
+		},
+	}
+	state.mu.Unlock()
+
+	handler := StreamHandler(state)
+	req := httptest.NewRequest(http.MethodGet, "/stream", nil)
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Code != http.StatusUnsupportedMediaType {
+		t.Fatalf("expected 415 Unsupported Media Type for HEVC stream, got: %d", rec.Code)
 	}
 }
