@@ -2,10 +2,14 @@ package media
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 )
+
+// ErrLacksFastStart indicates the MP4 is valid but 'mdat' appears before 'moov'.
+var ErrLacksFastStart = errors.New("MP4 lacks FastStart: 'mdat' appears before 'moov' (seeking will fail in browser)")
 
 // ValidateMP4 verifies that the file is an MP4 and has FastStart (moov before mdat).
 func ValidateMP4(file *os.File) error {
@@ -39,7 +43,7 @@ func ValidateMP4(file *os.File) error {
 
 		if boxType == "moov" {
 			if seenMdat {
-				return fmt.Errorf("MP4 lacks FastStart: 'mdat' appears before 'moov' (seeking will fail in browser)")
+				return ErrLacksFastStart
 			}
 			return nil // Valid MP4 with FastStart!
 		}
@@ -47,6 +51,25 @@ func ValidateMP4(file *os.File) error {
 			seenMdat = true
 		}
 
+		if size == 0 {
+			// Box extends to EOF
+			break
+		}
+		if size == 1 {
+			// 64-bit largesize
+			var largeHeader [8]byte
+			if _, err := io.ReadFull(file, largeHeader[:]); err != nil {
+				break
+			}
+			largeSize := binary.BigEndian.Uint64(largeHeader[:])
+			if largeSize < 16 {
+				break
+			}
+			if _, err := file.Seek(int64(largeSize-16), io.SeekCurrent); err != nil {
+				break
+			}
+			continue
+		}
 		if size < 8 {
 			break
 		}
@@ -54,6 +77,10 @@ func ValidateMP4(file *os.File) error {
 		if _, err := file.Seek(int64(size-8), io.SeekCurrent); err != nil {
 			break
 		}
+	}
+
+	if seenMdat {
+		return ErrLacksFastStart
 	}
 
 	return fmt.Errorf("invalid MP4: missing 'moov' metadata atom")

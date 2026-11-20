@@ -52,16 +52,25 @@ func UploadHandler(state *MovieState, r *room.Room) http.HandlerFunc {
 			return
 		}
 
-		// If MP4, check FastStart box structure
+		effectivePath := tempFile.Name()
+		isTemp := true
+
+		// If MP4, check FastStart box structure and auto-remux if needed
 		if !isMKV {
-			if err := ValidateMP4(tempFile); err != nil {
+			p, remuxed, err := EnsureFastStart(tempFile.Name(), false)
+			if err != nil {
 				_ = os.Remove(tempFile.Name())
 				http.Error(w, "Upload rejected: "+err.Error(), http.StatusBadRequest)
 				return
 			}
+			if remuxed {
+				_ = os.Remove(tempFile.Name())
+				effectivePath = p
+				isTemp = false
+			}
 		}
 
-		state.Set(tempFile.Name(), header.Filename, true)
+		state.Set(effectivePath, header.Filename, isTemp)
 
 		r.PlayBack.Update(0, false)
 

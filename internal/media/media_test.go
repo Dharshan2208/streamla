@@ -3,6 +3,7 @@ package media
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"net/http/httptest"
 	"os"
 	"strings"
@@ -79,8 +80,9 @@ func TestValidateMP4_MdatBeforeMoov(t *testing.T) {
 	defer os.Remove(f.Name())
 	defer f.Close()
 
-	if err := ValidateMP4(f); err == nil {
-		t.Fatal("expected error for mdat before moov, got nil")
+	err := ValidateMP4(f)
+	if !errors.Is(err, ErrLacksFastStart) {
+		t.Fatalf("expected ErrLacksFastStart, got: %v", err)
 	}
 }
 

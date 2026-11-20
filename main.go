@@ -24,6 +24,7 @@ var staticFS embed.FS
 
 func main() {
 	port := flag.String("port", "6969", "HTTP port to listen on")
+	noRemux := flag.Bool("no-remux", false, "Disable automatic FastStart remuxing of MP4 files")
 	flag.Parse()
 
 	movieState := media.NewMovieState()
@@ -38,21 +39,17 @@ func main() {
 			log.Fatalf("Invalid movie file path: %v", err)
 		}
 
-		f, err := os.Open(absPath)
-		if err != nil {
-			log.Fatalf("Cannot open movie file %q: %v", absPath, err)
-		}
-
+		effectivePath := absPath
 		ext := strings.ToLower(filepath.Ext(absPath))
 		if ext == ".mp4" || ext == ".m4v" {
-			if err := media.ValidateMP4(f); err != nil {
-				_ = f.Close()
+			p, _, err := media.EnsureFastStart(absPath, *noRemux)
+			if err != nil {
 				log.Fatalf("Movie validation failed for %q: %v", absPath, err)
 			}
+			effectivePath = p
 		}
-		_ = f.Close()
 
-		movieState.Set(absPath, filepath.Base(absPath), false)
+		movieState.Set(effectivePath, filepath.Base(absPath), false)
 		log.Printf("Loaded movie from disk: %s", filepath.Base(absPath))
 	}
 
