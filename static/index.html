@@ -4,24 +4,35 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Streamla — Watch Party</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b0b0e'/%3E%3Crect x='6' y='6' width='20' height='20' fill='%23ffe600' stroke='%23f5f5f0' stroke-width='2'/%3E%3Cpolygon points='13,11 22,16 13,21' fill='%230b0b0e'/%3E%3C/svg%3E"
+    />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <div id="app">
       <!-- Header bar -->
       <header class="navbar">
-        <div class="brand">Streamla</div>
-        <div style="display: flex; gap: 8px; align-items: center;">
-          <div id="sync-badge" class="badge hidden">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-name">Streamla</span>
+          <span class="brand-tag">LAN // SYNC</span>
+        </div>
+        <div class="navbar-status">
+          <div id="sync-badge" class="badge hidden" data-sync="locked">
             <span id="sync-status">Sync: Locked</span>
           </div>
-          <div id="room-badge" class="badge hidden">
-            Room: <span id="room-id"></span>
-            <button id="copy-btn" title="Copy Invite Link">Copy</button>
-            <button id="qr-btn" class="btn-small" style="padding: 2px 6px; font-size: 0.75rem;" title="Show QR Code">QR</button>
+          <div id="room-badge" class="badge badge-room hidden">
+            <span class="badge-label">Room</span>
+            <span id="room-id" class="badge-value"></span>
+            <button id="copy-btn" class="btn-micro" type="button" title="Copy Invite Link">Copy</button>
+            <button id="qr-btn" class="btn-micro btn-micro-accent" type="button" title="Show QR Code">QR</button>
           </div>
           <div id="viewers-badge" class="badge hidden">
-            Viewers: <span id="viewer-count">1</span>
+            <span class="badge-label">Viewers</span>
+            <span id="viewer-count" class="badge-value">1</span>
           </div>
         </div>
       </header>
@@ -29,71 +40,63 @@
       <!-- Main Player Area -->
       <main class="player-container">
         <!-- Welcome / Join / Upload Card -->
-        <!-- Welcome / Join / Upload Card -->
-        <div id="setup-card" class="card">
-          <h2 id="setup-title">Streamla Watch Party</h2>
-          <p id="movie-status">Ready to connect</p>
-
-          <!-- Viewer Join Section (Always visible!) -->
-          <div id="join-section" class="form-group">
-            <input
-              type="text"
-              id="join-room-input"
-              placeholder="Room ID"
-              style="
-                padding: 10px;
-                border-radius: 8px;
-                border: 1px solid #363b57;
-                background: #1a1d29;
-                color: #fff;
-                width: 80%;
-                text-align: center;
-                font-size: 1rem;
-              "
-            />
-            <button id="join-btn" class="btn primary" style="width: 80%">
-              Join Watch Party
-            </button>
+        <section id="setup-card" class="card" aria-labelledby="setup-title">
+          <div class="card-topbar">
+            <span>Broadcast Console</span>
+            <span>Local Network</span>
           </div>
 
-          <hr
-            style="
-              border: 0;
-              border-top: 1px solid #25283b;
-              margin: 20px 0;
-              width: 100%;
-            "
-          />
+          <div class="card-body">
+            <h1 id="setup-title">Streamla Watch Party</h1>
+            <p id="movie-status" class="status-readout" role="status" aria-live="polite">
+              Ready to connect
+            </p>
 
-          <!-- Host Upload Section -->
-          <div id="upload-section" class="form-group">
-            <span style="font-size: 0.85rem; color: #8f94a6"
-              >Hosting on this machine?</span
-            >
-            <label class="btn-file">
-              Choose Movie (.mp4)
-              <input type="file" id="movie-input" accept="video/mp4" hidden />
-            </label>
-            <span
-              id="file-name"
-              style="font-size: 0.8rem; color: #a5b4fc"
-            ></span>
-            <button id="upload-btn" class="btn" disabled>Start Hosting</button>
-            <div id="upload-progress" class="hidden">
-              Uploading movie to LAN...
+            <!-- Viewer Join Section (Always visible!) -->
+            <div id="join-section" class="form-group">
+              <label for="join-room-input" class="input-label">Room Code</label>
+              <input
+                type="text"
+                id="join-room-input"
+                class="brutal-input"
+                placeholder="ROOM ID"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <button id="join-btn" class="btn primary" type="button">
+                Join Watch Party
+              </button>
             </div>
+
+            <hr class="card-divider" />
+
+            <!-- Host Upload Section -->
+            <div id="upload-section" class="form-group upload-panel">
+              <span class="section-label">Hosting on this machine?</span>
+              <label class="btn-file">
+                <span>Choose Movie (.mp4)</span>
+                <input type="file" id="movie-input" class="sr-only" accept="video/mp4" />
+              </label>
+              <span id="file-name" class="file-name"></span>
+              <button id="upload-btn" class="btn btn-host-upload" type="button" disabled>
+                Start Hosting
+              </button>
+              <div id="upload-progress" class="upload-progress hidden" role="status" aria-live="polite">
+                Uploading movie to LAN...
+              </div>
+            </div>
+
+            <details class="lan-help">
+              <summary>Trouble connecting from other devices?</summary>
+              <div class="lan-help-content">
+                <p>1. Ensure all devices are on the exact same Wi-Fi network.</p>
+                <p>2. If devices can't reach this address, your router may have <strong>AP/Client Isolation</strong> enabled.</p>
+                <p>3. <strong>Instant Fix:</strong> Turn on your laptop's Wi-Fi Hotspot or run:</p>
+                <code>nmcli dev wifi hotspot ifname wlan0 ssid StreamlaParty password moviepass</code>
+              </div>
+            </details>
           </div>
-
-          <details class="lan-help">
-            <summary>Trouble connecting from other devices?</summary>
-            <div class="lan-help-content">
-              <p>1. Ensure all devices are on the exact same Wi-Fi network.</p>
-              <p>2. If devices can't reach this address, your router may have <strong>AP/Client Isolation</strong> enabled.</p>
-              <p>3. <strong>Instant Fix:</strong> Turn on your laptop's Wi-Fi Hotspot or run:</p>
-              <code>nmcli dev wifi hotspot ifname wlan0 ssid StreamlaParty password moviepass</code>
-            </div>
-          </details>
-        </div>
+        </section>
 
         <!-- Video Player -->
         <div id="video-wrapper" class="hidden">
@@ -101,38 +104,42 @@
             Your browser does not support HTML5 video.
           </video>
           <div class="player-controls-bar">
-            <div id="role-tag" class="role-tag" style="position: static;">Viewer Mode (Synced)</div>
+            <div id="role-tag" class="role-tag" data-role="viewer">Viewer Mode (Synced)</div>
             <div class="track-selectors">
               <!-- Audio Track Selection -->
               <div id="audio-track-group" class="selector-group hidden">
-                <label for="audio-select">Audio:</label>
+                <label for="audio-select">Audio</label>
                 <select id="audio-select" class="track-select">
                   <option value="default">Default</option>
                 </select>
               </div>
               <!-- Subtitle Selection -->
               <div id="subtitle-track-group" class="selector-group hidden">
-                <label for="subtitle-select">Subtitles:</label>
+                <label for="subtitle-select">Subtitles</label>
                 <select id="subtitle-select" class="track-select">
                   <option value="off">Off</option>
                 </select>
               </div>
               <!-- Fullscreen Button -->
-              <button id="fullscreen-btn" class="btn-small" title="Toggle Fullscreen">Fullscreen</button>
+              <button id="fullscreen-btn" class="btn-small" type="button" title="Toggle Fullscreen">
+                Fullscreen
+              </button>
             </div>
           </div>
         </div>
       </main>
 
       <!-- QR Code Modal -->
-      <div id="qr-modal" class="modal hidden">
+      <div id="qr-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="qr-modal-title">
         <div class="modal-content">
           <div class="modal-header">
-            <h3>Scan to Join Watch Party</h3>
-            <button id="close-qr-btn" class="close-btn">&times;</button>
+            <h2 id="qr-modal-title">Scan to Join Watch Party</h2>
+            <button id="close-qr-btn" class="close-btn" type="button" aria-label="Close QR Modal">&times;</button>
           </div>
           <div class="modal-body">
-            <img id="qr-image" src="/api/qr" alt="LAN Join QR Code" />
+            <div class="qr-frame">
+              <img id="qr-image" src="/api/qr" alt="LAN Join QR Code" />
+            </div>
             <p id="qr-url-text" class="qr-url"></p>
             <p class="qr-hint">Scan with your phone camera on the same Wi-Fi.</p>
           </div>

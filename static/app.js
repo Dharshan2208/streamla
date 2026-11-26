@@ -50,24 +50,30 @@ async function init() {
     }
 
     if (info.hasMovie) {
-      movieStatus.textContent = `🎬 Now Showing: ${info.filename}`;
+      movieStatus.textContent = `NOW SHOWING // ${info.filename}`;
+      movieStatus.classList.add("has-movie");
+      movieStatus.classList.remove("is-error");
       populateMediaTracks(info);
       if (joinRoomInput) joinRoomInput.style.display = "none";
+      const joinLabel = document.querySelector('#join-section .input-label');
+      if (joinLabel) joinLabel.style.display = "none";
       const uploadSec = document.getElementById("upload-section");
       if (uploadSec) uploadSec.style.display = "none";
       const hr = document.querySelector("#setup-card hr");
       if (hr) hr.style.display = "none";
       if (joinBtn) {
         joinBtn.textContent = isHost ? "▶ Start Watching (Host)" : "▶ Join Watch Party";
-        joinBtn.style.padding = "14px 20px";
-        joinBtn.style.fontSize = "1.1rem";
+        joinBtn.classList.add("is-ready");
       }
     } else {
       movieStatus.textContent =
         "No movie loaded yet. Ready for viewers to join.";
+      movieStatus.classList.remove("has-movie", "is-error");
     }
   } catch (err) {
     movieStatus.textContent = "Unable to connect to server.";
+    movieStatus.classList.remove("has-movie");
+    movieStatus.classList.add("is-error");
   }
 }
 
@@ -222,11 +228,15 @@ function startPlayer() {
   if (isHost) {
     video.controls = true;
     roleTag.textContent = "Host Mode (Playback Controller)";
+    roleTag.dataset.role = "host";
+    if (syncBadge) syncBadge.dataset.sync = "host";
     if (syncStatusSpan) syncStatusSpan.textContent = "Host (Authoritative)";
     setupHostListeners();
   } else {
     video.controls = false;
     roleTag.textContent = "Viewer Mode (Synced)";
+    roleTag.dataset.role = "viewer";
+    if (syncBadge) syncBadge.dataset.sync = "locked";
   }
 
   // Autoplay unlock gesture
@@ -293,14 +303,14 @@ function updateSyncUI(delta) {
   const absDeltaMs = Math.round(Math.abs(delta) * 1000);
   if (absDeltaMs < 50) {
     syncStatusSpan.textContent = `Sync: Locked (${absDeltaMs}ms)`;
-    syncStatusSpan.style.color = "#4ade80"; // green
+    if (syncBadge) syncBadge.dataset.sync = "locked";
   } else if (absDeltaMs <= 1000) {
     const dir = delta > 0 ? "behind" : "ahead";
     syncStatusSpan.textContent = `Sync: Nudging (${absDeltaMs}ms ${dir})`;
-    syncStatusSpan.style.color = "#facc15"; // yellow
+    if (syncBadge) syncBadge.dataset.sync = "nudging";
   } else {
     syncStatusSpan.textContent = `Sync: Catching up (${(absDeltaMs / 1000).toFixed(1)}s)`;
-    syncStatusSpan.style.color = "#f87171"; // red
+    if (syncBadge) syncBadge.dataset.sync = "catching-up";
   }
 }
 
@@ -520,7 +530,7 @@ setInterval(() => {
 // 9. Host Player Controls
 function setupHostListeners() {
   video.addEventListener("play", () => {
-    if (isProgrammaticChange || !ws) return;
+    if (isProgrammaticChange || !ws || ws.readyState !== WebSocket.OPEN) return;
     ws.send(
       JSON.stringify({
         type: "PLAY",
@@ -531,7 +541,7 @@ function setupHostListeners() {
   });
 
   video.addEventListener("pause", () => {
-    if (isProgrammaticChange || !ws) return;
+    if (isProgrammaticChange || !ws || ws.readyState !== WebSocket.OPEN) return;
     ws.send(
       JSON.stringify({
         type: "PAUSE",
@@ -542,7 +552,7 @@ function setupHostListeners() {
   });
 
   video.addEventListener("seeked", () => {
-    if (isProgrammaticChange || !ws) return;
+    if (isProgrammaticChange || !ws || ws.readyState !== WebSocket.OPEN) return;
     ws.send(
       JSON.stringify({
         type: "SEEK",
@@ -555,10 +565,14 @@ function setupHostListeners() {
 
 // 10. Share Link Copy & QR Code Modal
 copyBtn.addEventListener("click", () => {
-  navigator.clipboard.writeText(window.location.origin);
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(window.location.origin).catch(() => {});
+  }
   copyBtn.textContent = "Done";
+  copyBtn.classList.add("is-copied");
   setTimeout(() => {
     copyBtn.textContent = "Copy";
+    copyBtn.classList.remove("is-copied");
   }, 2000);
 });
 
@@ -572,13 +586,22 @@ if (qrBtn && qrModal && closeQrBtn) {
   qrBtn.addEventListener("click", () => {
     if (qrUrlText) qrUrlText.textContent = window.location.origin;
     qrModal.classList.remove("hidden");
+    closeQrBtn.focus();
   });
   closeQrBtn.addEventListener("click", () => {
     qrModal.classList.add("hidden");
+    qrBtn.focus();
   });
   qrModal.addEventListener("click", (e) => {
     if (e.target === qrModal) {
       qrModal.classList.add("hidden");
+      qrBtn.focus();
+    }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !qrModal.classList.contains("hidden")) {
+      qrModal.classList.add("hidden");
+      qrBtn.focus();
     }
   });
 }
